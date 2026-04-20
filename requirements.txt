@@ -1,3 +1,6 @@
 streamlit
 google-search-results
 google-genai
+pandas
+requests
+beautifulsoup4

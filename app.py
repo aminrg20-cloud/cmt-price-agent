@@ -84,9 +84,19 @@ def analyse_with_gemini(cmt_product, shopping_results):
     }}
     """
     
-    response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-    clean_text = response.text.replace('```json', '').replace('```', '').strip()
-    return json.loads(clean_text)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            # Using the latest Gemini model
+            response = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+            clean_text = response.text.replace('```json', '').replace('```', '').strip()
+            return json.loads(clean_text)
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                time.sleep(5) # Retry logic for busy servers
+            else:
+                raise e
+    raise Exception("Server is too busy after multiple attempts.")
 
 # ==========================================
 # 4. Execution Logic
@@ -96,6 +106,16 @@ if st.button("🚀 Run Market Analysis", type="primary"):
         st.error("⚠️ Please enter your API keys in the sidebar.")
     else:
         with st.spinner('Gathering data from Google Shopping UK and analysing...'):
+            
+            # ✅ The Fix: cmt_product is properly defined here before being passed to the AI
+            cmt_product = {
+                "sku": prod_sku,
+                "title": prod_title,
+                "type": prod_type,
+                "specs": specs,
+                "our_price_ex_vat": prod_price
+            }
+            
             try:
                 raw_data = get_google_shopping_results(search_query)
                 final_report = analyse_with_gemini(cmt_product, raw_data)
